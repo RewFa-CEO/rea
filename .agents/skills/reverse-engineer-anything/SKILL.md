@@ -2,7 +2,7 @@
 name: reverse-engineer-anything
 description: Reverse engineer native, managed, Electron/JavaScript, packaged, firmware, and browser targets with REA, and build agent environments (AgentEnv bundles) of web applications from a live instance or a capture. Use shipped-artifact or requested runtime evidence to explain features, compare versions, decompile code, or guide a reconstruction. Skip REA for ordinary source-repository architecture analysis.
 metadata:
-  version: "49"
+  version: "50"
 ---
 
 # REA
@@ -95,6 +95,11 @@ and target-execution boundaries.
 Choose the first tool from the target the user supplied. Use `open_binary` for
 active-target native or archive workflows; target-free tools take their own
 explicit path or endpoint and do not need it.
+
+Before opening a session on a route that needs an analysis engine, confirm
+this host can run it: `rea doctor` names the failing check and its
+remediation. Report a missing engine as a host prerequisite, not as an
+analysis finding, and do not start a route that cannot execute.
 
 - ASAR or extracted JavaScript/Electron tree:
   `analyze_javascript_application`.
@@ -480,6 +485,51 @@ answered, partially answered, or unresolved based on its evidence; keep
 bounded negative searches bounded, and do not describe a broad investigation
 as complete while required questions remain open.
 
+## Turn findings into an implementation spec
+
+When the user wants to reproduce a feature they are allowed to analyze, follow
+[the replication pipeline](references/replication-pipeline.md) instead of
+reporting findings and stopping.
+
+The pipeline narrows the target, checks that this machine can actually run the
+chosen route, analyzes with Evidence, writes a plain-language implementation
+spec, builds an independent version against that spec, compares behavior
+input-by-input against the original, and finishes with a pre-ship security
+checklist. PentAGI-style scanning is out of scope because it needs Docker;
+the checklist replaces it.
+
+State the boundary before analyzing: only a target the user owns, an
+open-source project, or one they are explicitly authorized for. Never analyze a
+target that forbids reverse engineering, and never work against obfuscation or
+encryption. Post-login private data, third-party private APIs, and a
+commercial product's protected internals stay out of scope.
+
+The spec is the contract for the rebuild, so it must stay separate from the
+target's implementation. It records observable behavior — inputs, processing,
+outputs, edge cases, and the behaviors that must match exactly — and maps
+every claim to an evidence id. A claim without evidence is marked as inference
+or unknown; never close that gap with a plausible guess. "Parity" lists only
+behaviors a test can distinguish from outside.
+
+Do not copy the target's code, comments, strings, styling, or assets. Write
+the reimplementation in the user's own stack. State the file layout and the
+test cases before writing implementation code, and run the tests before
+describing the version as working.
+
+A version that runs is not a version that matches. Drive the original and the
+reimplementation with the same inputs, report the differences as one row per
+input, and fix them one at a time so each change is attributable. "Basically
+the same" is not a comparison result, and a scanner's clean report is not
+proof that a system is secure.
+
+## Compare behavior against the original
+
+For a version comparison the user asked for, drive both sides with the same
+inputs rather than reasoning from the source. Include the spec's edge cases:
+empty input, no match, case handling, and post-mutation refresh. Report
+differences in a table with one row per input, sorted by impact, and state
+which behaviors remain unverified when the original could not be observed.
+
 ## Read only the relevant guide
 
 - Native binaries, managed assemblies, archives, and extraction:
@@ -496,6 +546,9 @@ as complete while required questions remain open.
 - Agent environments (AgentEnv bundles) of a web application, recorded from
   a live instance or a HAR:
   [references/environments.md](references/environments.md)
+- Reproducing an authorized target feature: implementation spec, independent
+  rebuild, behavior comparison, and pre-ship security checklist:
+  [references/replication-pipeline.md](references/replication-pipeline.md)
 
 ## Finish the task
 
@@ -503,3 +556,7 @@ Explain findings in plain language and tie them to returned evidence. When the
 user asks to build something, use normal coding tools and separate observed
 behavior from design choices. Close an opened native session with
 `close_binary` when the investigation is complete.
+
+When the task ran the replication pipeline, finish with the comparison table
+and the security checklist, not with the rebuild. A rebuild that passes its own
+tests but was never compared against the original is an unfinished task.
